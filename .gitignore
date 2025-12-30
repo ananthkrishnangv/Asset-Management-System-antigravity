@@ -1,0 +1,50 @@
+# Asset Management System - Git Ignore
+
+# Configuration (contains sensitive data)
+config/config.php
+
+# Uploaded files
+uploads/
+backups/
+
+# Logs
+logs/
+*.log
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Old backup directory
+_backup_old/
+
+# Composer (if used later)
+vendor/
+composer.lock
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Session files
+sessions/
+
+# Temporary files
+tmp/
+temp/
+cache/
+
+# SSL certificates (sensitive)
+SSL/
+
+# Database dumps
+*.sql.gz
+*.dump
