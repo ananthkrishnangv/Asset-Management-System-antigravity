@@ -4,7 +4,7 @@
  * Login Page - Stunning Modern Design
  */
 
-require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/../bootstrap.php';
 
 // Redirect if already logged in
 if (Auth::check()) {
@@ -62,264 +62,265 @@ if (isset($_GET['reset']) && $_GET['reset'] === 'success') {
     <title>Login - CSIR-SERC Asset Management System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link rel="shortcut icon" href="<?= url('Image/logo-serc.jpg') ?>">
     <style>
-        * {
-            font-family: 'Inter', sans-serif;
+        :root {
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --primary-gradient: linear-gradient(135deg, #00C6FF 0%, #0072FF 100%);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0f172a;
+            overflow: hidden;
         }
 
         .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
             background-image: url('<?= url('Branding/CSIR-SERC Main Building.png') ?>');
             background-size: cover;
             background-position: center;
-            background-repeat: no-repeat;
+            filter: brightness(0.4);
+        }
+
+        .ambient-light {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120vw;
+            height: 120vh;
+            background: radial-gradient(circle at center, rgba(0, 114, 255, 0.15) 0%, transparent 70%);
+            z-index: -1;
+            animation: pulseLight 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulseLight {
+            0% {
+                opacity: 0.5;
+                transform: translate(-50%, -50%) scale(0.9);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.1);
+            }
         }
 
         .glass-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(20, 30, 48, 0.6);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
-        .gradient-text {
-            background: linear-gradient(135deg, #1a365d 0%, #2d5aa0 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .input-group {
+            position: relative;
+            transition: all 0.3s ease;
         }
 
-        .btn-gradient {
-            background: linear-gradient(135deg, #1a365d 0%, #2d5aa0 50%, #1a365d 100%);
-            background-size: 200% 200%;
-            animation: gradientShift 3s ease infinite;
+        .input-field {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s ease;
         }
 
-        @keyframes gradientShift {
-
-            0%,
-            100% {
-                background-position: 0% 50%;
-            }
-
-            50% {
-                background-position: 100% 50%;
-            }
+        .input-field:focus {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #00C6FF;
+            box-shadow: 0 0 0 4px rgba(0, 198, 255, 0.1);
+            outline: none;
         }
 
-        .input-focus:focus {
-            box-shadow: 0 0 0 3px rgba(45, 90, 160, 0.2);
-            border-color: #2d5aa0;
+        .input-field::placeholder {
+            color: rgba(255, 255, 255, 0.4);
         }
 
-        .logo-pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        .btn-primary {
+            background: var(--primary-gradient);
+            background-size: 200% auto;
+            transition: 0.5s;
+            border: none;
         }
 
-        @keyframes pulse {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.8;
-            }
+        .btn-primary:hover {
+            background-position: right center;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 114, 255, 0.3);
         }
 
-        .float-animation {
-            animation: float 6s ease-in-out infinite;
+        .logo-container img {
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2));
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0px);
-            }
-
-            50% {
-                transform: translateY(-10px);
-            }
+        .logo-container:hover img {
+            transform: scale(1.05);
         }
 
-        .slide-in {
-            animation: slideIn 0.5s ease-out forwards;
+        .animate-up {
+            animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            opacity: 0;
+            transform: translateY(20px);
         }
 
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
+        .delay-100 {
+            animation-delay: 0.1s;
+        }
 
+        .delay-200 {
+            animation-delay: 0.2s;
+        }
+
+        .delay-300 {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes fadeInUp {
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
 
-        .shake {
-            animation: shake 0.5s ease-in-out;
+        /* Status Messages */
+        .status-message {
+            animation: slideIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
-        @keyframes shake {
+        @keyframes slideIn {
+            from {
+                transform: translateX(-10px);
+                opacity: 0;
+            }
 
-            0%,
-            100% {
+            to {
                 transform: translateX(0);
+                opacity: 1;
             }
-
-            25% {
-                transform: translateX(-5px);
-            }
-
-            75% {
-                transform: translateX(5px);
-            }
-        }
-
-        .overlay {
-            background: linear-gradient(135deg, rgba(26, 54, 93, 0.85) 0%, rgba(45, 90, 160, 0.75) 100%);
         }
     </style>
 </head>
 
-<body class="min-h-screen bg-pattern">
-    <div class="min-h-screen overlay flex items-center justify-center p-4">
-        <div class="w-full max-w-md slide-in">
-            <!-- Login Card -->
-            <div class="glass-card rounded-3xl shadow-2xl overflow-hidden">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-slate-800 to-slate-900 px-8 py-10 text-center">
-                    <div class="flex justify-center items-center gap-4 mb-4">
-                        <img src="<?= url('Branding/csirlogo.jpg') ?>" alt="CSIR Logo"
-                            class="h-16 w-16 rounded-full border-4 border-white/30 shadow-lg float-animation">
-                        <img src="<?= url('Image/logo-serc.jpg') ?>" alt="SERC Logo"
-                            class="h-16 w-16 rounded-full border-4 border-white/30 shadow-lg float-animation"
-                            style="animation-delay: 0.5s;">
-                    </div>
-                    <h1 class="text-2xl font-bold text-white mb-1">CSIR-SERC</h1>
-                    <p class="text-blue-200 text-sm">Structural Engineering Research Centre</p>
-                    <div class="mt-4 inline-block bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
-                        <span class="text-white font-semibold text-lg">Asset Management System</span>
+<body class="flex items-center justify-center min-h-screen text-white">
+    <!-- Background Elements -->
+    <div class="bg-pattern"></div>
+    <div class="ambient-light"></div>
+
+    <!-- Login Container -->
+    <div class="w-full max-w-[440px] p-6 relative z-10">
+        <div class="glass-card rounded-3xl p-8 md:p-10 animate-up">
+
+            <!-- Branding -->
+            <div class="text-center mb-10 logo-container">
+                <div class="flex justify-center items-center gap-6 mb-6">
+                    <img src="<?= url('Branding/csirlogo.jpg') ?>" alt="CSIR"
+                        class="w-16 h-16 rounded-full border-2 border-white/20">
+                    <div class="h-10 w-px bg-white/20"></div>
+                    <img src="<?= url('Image/logo-serc.jpg') ?>" alt="SERC"
+                        class="w-16 h-16 rounded-full border-2 border-white/20">
+                </div>
+                <h1
+                    class="text-2xl font-bold tracking-tight mb-2 bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-200">
+                    CSIR-SERC
+                </h1>
+                <p
+                    class="text-sm text-blue-200/80 font-medium tracking-wide border-t border-white/10 inline-block pt-2">
+                    ASSET MANAGEMENT SYSTEM
+                </p>
+            </div>
+
+            <!-- Messages -->
+            <?php if ($error): ?>
+                <div
+                    class="status-message mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 text-sm flex items-center gap-3">
+                    <i class="fas fa-exclamation-circle text-red-400"></i>
+                    <?= Security::escape($error) ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($success): ?>
+                <div
+                    class="status-message mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-200 text-sm flex items-center gap-3">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                    <?= Security::escape($success) ?>
+                </div>
+            <?php endif; ?>
+
+            <!-- Form -->
+            <form method="POST" action="" class="space-y-6">
+                <?= Security::csrfField() ?>
+
+                <div class="space-y-2 animate-up delay-100">
+                    <label class="text-xs font-semibold text-blue-200/80 uppercase tracking-wider ml-1">AMS ID</label>
+                    <div class="input-group">
+                        <input type="text" name="ams_id" required
+                            class="input-field w-full px-5 py-3.5 rounded-xl text-sm" placeholder="Enter your AMS ID"
+                            value="<?= Security::escape($_POST['ams_id'] ?? '') ?>">
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300/50">
+                            <i class="fas fa-user-circle text-lg"></i>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Form Section -->
-                <div class="px-8 py-10">
-                    <?php if ($error): ?>
-                        <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg shake">
-                            <div class="flex items-center">
-                                <i class="fas fa-exclamation-circle text-red-500 mr-3"></i>
-                                <span class="text-red-700 text-sm"><?= Security::escape($error) ?></span>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-
-                    <?php if ($success): ?>
-                        <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-r-lg">
-                            <div class="flex items-center">
-                                <i class="fas fa-check-circle text-green-500 mr-3"></i>
-                                <span class="text-green-700 text-sm"><?= Security::escape($success) ?></span>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST" action="" class="space-y-6">
-                        <?= Security::csrfField() ?>
-
-                        <!-- AMS ID Field -->
-                        <div>
-                            <label for="ams_id" class="block text-sm font-semibold text-gray-700 mb-2">
-                                <i class="fas fa-id-card text-blue-600 mr-2"></i>AMS ID
-                            </label>
-                            <div class="relative">
-                                <input type="text" name="ams_id" id="ams_id" required autocomplete="username"
-                                    placeholder="Enter your AMS ID"
-                                    class="input-focus w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none transition-all duration-300"
-                                    value="<?= Security::escape($_POST['ams_id'] ?? '') ?>">
-                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
-                                    <i class="fas fa-user"></i>
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Password Field -->
-                        <div>
-                            <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">
-                                <i class="fas fa-lock text-blue-600 mr-2"></i>Password
-                            </label>
-                            <div class="relative">
-                                <input type="password" name="password" id="password" required
-                                    autocomplete="current-password" placeholder="Enter your password"
-                                    class="input-focus w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none transition-all duration-300">
-                                <button type="button" onclick="togglePassword()"
-                                    class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-                                    <i id="eyeIcon" class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Login Button -->
-                        <button type="submit"
-                            class="btn-gradient w-full py-4 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2">
-                            <i class="fas fa-sign-in-alt"></i>
-                            <span>Sign In</span>
+                <div class="space-y-2 animate-up delay-200">
+                    <label class="text-xs font-semibold text-blue-200/80 uppercase tracking-wider ml-1">Password</label>
+                    <div class="input-group">
+                        <input type="password" name="password" id="password" required
+                            class="input-field w-full px-5 py-3.5 rounded-xl text-sm" placeholder="••••••••">
+                        <button type="button" onclick="togglePassword()"
+                            class="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300/50 hover:text-white transition-colors p-1">
+                            <i id="eyeIcon" class="fas fa-eye text-lg"></i>
                         </button>
-                    </form>
-
-                    <!-- Forgot Password Link -->
-                    <div class="mt-6 text-center">
-                        <a href="<?= url('public/forgot-password.php') ?>"
-                            class="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
-                            <i class="fas fa-key mr-1"></i>
-                            Forgot Password?
-                        </a>
                     </div>
                 </div>
 
-                <!-- Footer -->
-                <div class="bg-gray-50 px-8 py-4 text-center border-t border-gray-100">
-                    <p class="text-xs text-gray-500">
-                        © <?= date('Y') ?> CSIR-SERC. All rights reserved.
-                    </p>
+                <div class="pt-4 animate-up delay-300">
+                    <button type="submit"
+                        class="btn-primary w-full py-4 rounded-xl font-bold text-sm tracking-wide shadow-lg shadow-blue-900/20 text-white flex items-center justify-center gap-2 group">
+                        <span>SIGN IN TO DASHBOARD</span>
+                        <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                    </button>
                 </div>
-            </div>
+            </form>
 
-            <!-- Security Badge -->
-            <div class="mt-6 text-center">
-                <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
-                    <i class="fas fa-shield-alt text-green-400"></i>
-                    <span class="text-white text-sm">Secured with SSL & Advanced Encryption</span>
-                </div>
+            <!-- Footer -->
+            <div class="mt-8 text-center animate-up delay-300">
+                <a href="<?= url('public/forgot-password.php') ?>"
+                    class="text-sm text-blue-300/60 hover:text-white transition-colors inline-flex items-center gap-2 hover:gap-3">
+                    <span>Forgot your password?</span>
+                    <i class="fas fa-long-arrow-alt-right opacity-0 hover:opacity-100 transition-opacity"></i>
+                </a>
             </div>
+        </div>
+
+        <div class="mt-8 text-center text-xs text-blue-200/20 font-light tracking-widest animate-up delay-300">
+            SECURED CONNECTION &bull; SSL ENCRYPTED
         </div>
     </div>
 
     <script>
         function togglePassword() {
-            const passwordField = document.getElementById('password');
-            const eyeIcon = document.getElementById('eyeIcon');
-
-            if (passwordField.type === 'password') {
-                passwordField.type = 'text';
-                eyeIcon.classList.remove('fa-eye');
-                eyeIcon.classList.add('fa-eye-slash');
+            const input = document.getElementById('password');
+            const icon = document.getElementById('eyeIcon');
+ if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
             } else {
-                passwordField.type = 'password';
-                eyeIcon.classList.remove('fa-eye-slash');
-                eyeIcon.classList.add('fa-eye');
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
             }
         }
-
-        // Focus on AMS ID field on load
-        document.addEventListener('DOMContentLoaded', function () {
-            document.getElementById('ams_id').focus();
-        });
     </script>
 </body>
 

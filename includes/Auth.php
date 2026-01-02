@@ -183,14 +183,14 @@ class Auth
                 echo json_encode(['error' => 'Authentication required']);
                 exit;
             }
-            header('Location: ' . APP_URL . '/index.php?error=auth');
+            header('Location: ' . APP_URL . '/public/index.php?error=auth');
             exit;
         }
 
         // Check session timeout
         if (isset($_SESSION['login_time']) && (time() - $_SESSION['login_time']) > SESSION_LIFETIME) {
             self::logout();
-            header('Location: ' . APP_URL . '/index.php?error=timeout');
+            header('Location: ' . APP_URL . '/public/index.php?error=timeout');
             exit;
         }
 

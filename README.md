@@ -116,18 +116,42 @@ Employee → HoD Approval → Supervisor Approval → Update DIR/PIR → Notify 
 - **Frontend**: Tailwind CSS 3.x, Chart.js, Font Awesome 6
 - **Email**: SMTP (Gmail compatible)
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## License
-
-This project is developed for CSIR-SERC internal use.
-
-## Support
-
-For support, contact the ICT Division at CSIR-SERC.
+## Deployment
+    
+    ### Remote Deployment
+    
+    The application includes a script to deploy to the production server (`10.10.200.57`).
+    
+    1. **Navigate to the deployment directory:**
+       ```bash
+       cd deployment
+       ```
+    
+    2. **Run the deployment script:**
+       ```bash
+       ./deploy.sh
+       ```
+       > **Note:** Establish SSH access to the remote server before running this script. The script assumes your local SSH keys are authorized on the server.
+       > Ideally, update the `REMOTE_USER` variable in `deploy.sh` if the user is not `root`.
+    
+    ### Server Configuration
+    
+    - **Apache Config:** Located at `deployment/ams.conf`
+    - **SSL Certificates:** Located in `SSL Key/` directory
+    - **Domain:** `https://ir.serc.res.in`
+    
+    ## Contributing
+    
+    1. Fork the repository
+    2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+    3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+    4. Push to the branch (`git push origin feature/AmazingFeature`)
+    5. Open a Pull Request
+    
+    ## License
+    
+    This project is developed for CSIR-SERC internal use.
+    
+    ## Support
+    
+    For support, contact the ICT Division at CSIR-SERC.

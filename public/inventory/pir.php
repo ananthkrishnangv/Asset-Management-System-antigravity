@@ -3,7 +3,7 @@
  * Personal Inventory Register (PIR) Management
  */
 
-require_once __PIR__ . '/../../bootstrap.php';
+require_once __DIR__ . '/../../bootstrap.php';
 Auth::requireAuth();
 
 $db = Database::getInstance();
@@ -385,7 +385,8 @@ ob_start();
     <!-- Pagination -->
     <div id="pagination" class="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
         <p class="text-sm text-gray-500">Showing <span id="showingFrom">0</span> to <span id="showingTo">0</span> of
-            <span id="totalItems">0</span> items</p>
+            <span id="totalItems">0</span> items
+        </p>
         <div id="paginationButtons" class="flex gap-2"></div>
     </div>
 </div>

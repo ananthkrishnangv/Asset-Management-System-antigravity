@@ -48,3 +48,4 @@ SSL/
 # Database dumps
 *.sql.gz
 *.dump
+SSL Key/
