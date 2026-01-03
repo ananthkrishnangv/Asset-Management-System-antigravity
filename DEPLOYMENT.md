@@ -13,10 +13,10 @@
 
 ## Credentials
 
-### Application Login (Default Administrator)
+### Application Login (Administrator)
 - **URL**: [https://ir.serc.res.in](https://ir.serc.res.in)
 - **Username (AMS ID)**: `admin`
-- **Password**: `admin123`
+- **Password**: `Dda5a3d52a#4815`
 
 ### Database Credentials
 - **Host**: `localhost`
