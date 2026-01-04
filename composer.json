@@ -1,0 +1,12 @@
+{
+    "name": "csir-serc/asset-management",
+    "description": "Asset Management System for CSIR-SERC",
+    "require": {
+        "phpmailer/phpmailer": "^6.8",
+        "tecnickcom/tcpdf": "^6.6",
+        "phpoffice/phpspreadsheet": "^1.29"
+    },
+    "autoload": {
+        "classmap": ["includes/"]
+    }
+}

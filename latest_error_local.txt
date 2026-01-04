@@ -1,0 +1,30 @@
+[Sun Jan 04 21:53:02.968270 2026] [mpm_event:notice] [pid 8323:tid 8323] AH00489: Apache/2.4.62 (Rocky Linux) OpenSSL/3.5.1 configured -- resuming normal operations
+[Sun Jan 04 21:53:02.968312 2026] [core:notice] [pid 8323:tid 8323] AH00094: Command line: '/usr/sbin/httpd -D FOREGROUND'
+[Sun Jan 04 21:57:18.245649 2026] [proxy_fcgi:error] [pid 8327:tid 8454] [client 14.139.176.52:43590] AH01071: Got error 'Primary script unknown', referer: https://ir.serc.res.in/public/
+[Sun Jan 04 21:58:14.767800 2026] [proxy_fcgi:error] [pid 8327:tid 8462] [client 14.139.176.52:41682] AH01071: Got error 'Primary script unknown', referer: https://ir.serc.res.in/
+[Sun Jan 04 22:00:33.866511 2026] [proxy_fcgi:error] [pid 8365:tid 8491] [client 10.10.3.15:26936] AH01071: Got error 'Primary script unknown', referer: https://ir.serc.res.in/
+[Sun Jan 04 22:05:01.619873 2026] [mpm_event:notice] [pid 8323:tid 8323] AH00492: caught SIGWINCH, shutting down gracefully
+[Sun Jan 04 22:05:02.777090 2026] [suexec:notice] [pid 8923:tid 8923] AH01232: suEXEC mechanism enabled (wrapper: /usr/sbin/suexec)
+AH00558: httpd: Could not reliably determine the server's fully qualified domain name, using fe80::526b:8dff:fec1:4226%ens3. Set the 'ServerName' directive globally to suppress this message
+[Sun Jan 04 22:05:02.858444 2026] [lbmethod_heartbeat:notice] [pid 8923:tid 8923] AH02282: No slotmem from mod_heartmonitor
+[Sun Jan 04 22:05:02.862884 2026] [mpm_event:notice] [pid 8923:tid 8923] AH00489: Apache/2.4.62 (Rocky Linux) OpenSSL/3.5.1 configured -- resuming normal operations
+[Sun Jan 04 22:05:02.862910 2026] [core:notice] [pid 8923:tid 8923] AH00094: Command line: '/usr/sbin/httpd -D FOREGROUND'
+[Sun Jan 04 22:17:37.915036 2026] [proxy_fcgi:error] [pid 8935:tid 9087] [client 10.10.3.15:43843] AH01071: Got error 'Primary script unknown'
+[Sun Jan 04 22:17:38.714388 2026] [proxy_fcgi:error] [pid 8935:tid 9088] [client 10.10.3.15:43843] AH01071: Got error 'Primary script unknown'
+[Sun Jan 04 22:18:45.364445 2026] [proxy_fcgi:error] [pid 9227:tid 9262] [client 14.139.176.52:43604] AH01071: Got error 'Primary script unknown', referer: https://ir.serc.res.in/public/dashboard.php
+[Sun Jan 04 22:18:53.190007 2026] [proxy_fcgi:error] [pid 8927:tid 9037] [client 14.139.176.52:44590] AH01071: Got error 'Primary script unknown', referer: https://ir.serc.res.in/public/dashboard.php
+[Sun Jan 04 22:20:03.862968 2026] [proxy_fcgi:error] [pid 8927:tid 9046] [client 14.139.176.52:38118] AH01071: Got error 'Primary script unknown', referer: https://ir.serc.res.in/public/dashboard.php
+[Sun Jan 04 22:21:21.596088 2026] [proxy_fcgi:error] [pid 8926:tid 9042] [client 14.139.176.52:41310] AH01071: Got error 'Primary script unknown', referer: https://ir.serc.res.in/public/admin/users.php
+[Sun Jan 04 22:24:11.618541 2026] [proxy_fcgi:error] [pid 9227:tid 9276] [client 10.10.3.15:13943] AH01071: Got error 'Primary script unknown', referer: https://ir.serc.res.in/public/dashboard.php
+[Sun Jan 04 22:37:20.567822 2026] [proxy_fcgi:error] [pid 8935:tid 9091] [client 14.139.176.52:49576] AH01071: Got error 'Primary script unknown', referer: https://ir.serc.res.in/public/inventory/pir.php
+[Sun Jan 04 22:39:10.431805 2026] [proxy_fcgi:error] [pid 8926:tid 9032] [client 10.10.3.15:64530] AH01071: Got error 'Primary script unknown'
+[Sun Jan 04 22:39:52.870228 2026] [proxy_fcgi:error] [pid 8926:tid 9029] [client 14.139.176.52:53010] AH01071: Got error 'Primary script unknown', referer: https://ir.serc.res.in/public/transfers/index.php
+[Sun Jan 04 22:48:05.751519 2026] [proxy_fcgi:error] [pid 8926:tid 9034] [client 10.10.3.15:59268] AH01071: Got error 'Primary script unknown'
+[Sun Jan 04 23:04:14.105083 2026] [proxy_fcgi:error] [pid 9227:tid 9265] [client 14.139.176.52:44622] AH01071: Got error 'Primary script unknown', referer: https://ir.serc.res.in/public/reports/index.php
+[Sun Jan 04 23:18:24.634139 2026] [proxy_fcgi:error] [pid 8926:tid 9012] [client 10.10.3.15:37214] AH01071: Got error 'Primary script unknown'
+[Sun Jan 04 23:18:25.374865 2026] [proxy_fcgi:error] [pid 8926:tid 9015] [client 10.10.3.15:37218] AH01071: Got error 'Primary script unknown'
+[Sun Jan 04 23:18:26.187846 2026] [proxy_fcgi:error] [pid 8926:tid 9018] [client 10.10.3.15:58790] AH01071: Got error 'Primary script unknown'
+[Sun Jan 04 23:18:33.673644 2026] [proxy_fcgi:error] [pid 8926:tid 9042] [client 10.10.3.15:58956] AH01071: Got error 'Primary script unknown'
+[Sun Jan 04 23:28:25.431829 2026] [proxy_fcgi:error] [pid 9227:tid 9256] [client 10.10.3.15:28995] AH01071: Got error 'Primary script unknown'
+[Sun Jan 04 23:58:32.760999 2026] [proxy_fcgi:error] [pid 8927:tid 9035] [client 10.10.3.15:24866] AH01071: Got error 'Primary script unknown'
+[Mon Jan 05 00:00:14.669729 2026] [proxy_fcgi:error] [pid 8926:tid 9018] [client 10.10.3.15:50602] AH01071: Got error 'Primary script unknown'
