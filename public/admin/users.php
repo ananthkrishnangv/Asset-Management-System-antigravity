@@ -1,6 +1,7 @@
 <?php
 /**
  * Admin User Management Page
+ * Uses layout template and correct users table
  */
 require_once __DIR__ . '/../../bootstrap.php';
 
@@ -9,34 +10,53 @@ Auth::requireRole('admin');
 $db = Database::getInstance();
 
 // Handle Actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && Security::verifyCSRFToken($_POST[CSRF_TOKEN_NAME] ?? '')) {
     $action = $_POST['action'] ?? '';
 
     // Add Single User
     if ($action === 'add_user') {
-        $amsId = $_POST['ams_id'];
-        $empName = $_POST['emp_name'];
-        $email = $_POST['email'];
-        // Default password is 'serc@123' if not provided
-        $password = !empty($_POST['password']) ? password_hash($_POST['password'], PASSWORD_BCRYPT) : password_hash('serc@123', PASSWORD_BCRYPT);
-        $role = $_POST['role'];
-        $dept = $_POST['department'];
+        $amsId = Security::sanitize($_POST['ams_id'] ?? '');
+        $empName = Security::sanitize($_POST['emp_name'] ?? '');
+        $email = Security::sanitize($_POST['email'] ?? '');
+        $password = !empty($_POST['password']) ? Security::hashPassword($_POST['password']) : Security::hashPassword('serc@123');
+        $role = $_POST['role'] ?? 'employee';
+        $deptId = !empty($_POST['department_id']) ? (int) $_POST['department_id'] : null;
 
         // Check duplicate
-        $exists = $db->fetch("SELECT id FROM emp_details WHERE AMS_id = ?", [$amsId]);
+        $exists = $db->fetch("SELECT id FROM users WHERE ams_id = ?", [$amsId]);
         if ($exists) {
             flash('error', 'User with AMS ID ' . $amsId . ' already exists.');
         } else {
-            $db->insert('emp_details', [
-                'AMS_id' => $amsId,
+            $db->insert('users', [
+                'ams_id' => $amsId,
                 'emp_name' => $empName,
                 'email_id' => $email,
                 'password' => $password,
-                'user_priv' => $role,
-                'department' => $dept
+                'role' => $role,
+                'department_id' => $deptId,
+                'is_active' => 1
             ]);
             flash('success', 'User added successfully.');
+            ActivityLog::log('create', 'users', null, 'user', "Created user: $amsId");
         }
+        redirect(url('public/admin/users.php'));
+    }
+
+    // Update User
+    if ($action === 'update_user') {
+        $id = (int) $_POST['user_id'];
+        $updates = [
+            'emp_name' => Security::sanitize($_POST['emp_name'] ?? ''),
+            'email_id' => Security::sanitize($_POST['email'] ?? ''),
+            'role' => $_POST['role'] ?? 'employee',
+            'department_id' => !empty($_POST['department_id']) ? (int) $_POST['department_id'] : null,
+            'is_active' => isset($_POST['is_active']) ? 1 : 0
+        ];
+        if (!empty($_POST['password'])) {
+            $updates['password'] = Security::hashPassword($_POST['password']);
+        }
+        $db->update('users', $updates, 'id = :id', ['id' => $id]);
+        flash('success', 'User updated successfully.');
         redirect(url('public/admin/users.php'));
     }
 
@@ -45,262 +65,388 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ids = $_POST['selected_ids'] ?? [];
         if (!empty($ids)) {
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
-            $db->query("DELETE FROM emp_details WHERE id IN ($placeholders)", $ids);
+            $db->query("DELETE FROM users WHERE id IN ($placeholders)", $ids);
             flash('success', count($ids) . ' users deleted successfully.');
-        } else {
-            flash('error', 'No users selected for deletion.');
         }
         redirect(url('public/admin/users.php'));
     }
 
     // CSV Import
-    if ($action === 'import_csv') {
-        if (!empty($_FILES['csv_file']['tmp_name'])) {
-            $file = fopen($_FILES['csv_file']['tmp_name'], 'r');
-            $count = 0;
-            // Skip header
-            fgetcsv($file);
-            
-            while (($row = fgetcsv($file)) !== FALSE) {
-                // Expected: AMS_ID, Name, Email, Password, Role, Department
-                if (count($row) >= 6) {
-                    $amsId = $row[0];
-                    // Skip if exists
-                    if ($db->fetch("SELECT id FROM emp_details WHERE AMS_id = ?", [$amsId])) continue;
+    if ($action === 'import_csv' && !empty($_FILES['csv_file']['tmp_name'])) {
+        $file = fopen($_FILES['csv_file']['tmp_name'], 'r');
+        $count = 0;
+        fgetcsv($file); // Skip header
 
-                    $db->insert('emp_details', [
-                        'AMS_id' => $row[0],
-                        'emp_name' => $row[1],
-                        'email_id' => $row[2],
-                        'password' => password_hash($row[3], PASSWORD_BCRYPT),
-                        'user_priv' => $row[4],
-                        'department' => $row[5]
-                    ]);
-                    $count++;
-                }
+        while (($row = fgetcsv($file)) !== FALSE) {
+            if (count($row) >= 4) {
+                $amsId = $row[0];
+                if ($db->fetch("SELECT id FROM users WHERE ams_id = ?", [$amsId]))
+                    continue;
+
+                $db->insert('users', [
+                    'ams_id' => $row[0],
+                    'emp_name' => $row[1],
+                    'email_id' => $row[2],
+                    'password' => Security::hashPassword($row[3] ?? 'serc@123'),
+                    'role' => $row[4] ?? 'employee',
+                    'department_id' => !empty($row[5]) ? (int) $row[5] : null,
+                    'is_active' => 1
+                ]);
+                $count++;
             }
-            fclose($file);
-            flash('success', "$count users imported successfully.");
         }
+        fclose($file);
+        flash('success', "$count users imported successfully.");
         redirect(url('public/admin/users.php'));
     }
 }
 
-// Fetch Users
-$users = $db->fetchAll("SELECT * FROM emp_details ORDER BY id DESC");
+// Fetch Users with department names
+$users = $db->fetchAll(
+    "SELECT u.*, d.name as department_name, d.code as department_code 
+     FROM users u 
+     LEFT JOIN departments d ON u.department_id = d.id 
+     ORDER BY u.id DESC"
+);
+
+// Fetch departments for dropdown
+$departments = $db->fetchAll("SELECT id, name, code FROM departments ORDER BY name");
+
 $pageTitle = 'User Management';
+$pageSubtitle = 'Manage system users and access roles';
+
+ob_start();
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $pageTitle ?> - <?= APP_NAME ?></title>
-    <!-- CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="<?= asset('assets/css/fluent.css') ?>">
-</head>
-<body>
-    <div class="d-flex">
-        <!-- Sidebar -->
-        <div class="sidebar text-white" style="width: 260px; min-height: 100vh;">
-            <div class="p-4">
-                <h4 class="fw-bold mb-4"><i class="fas fa-cube me-2"></i>AMS</h4>
-                <a href="<?= url('public/dashboard.php') ?>" class="d-block text-white text-decoration-none mb-3 opacity-75 hover-opacity-100"><i class="fas fa-home me-2"></i> Dashboard</a>
-                <a href="<?= url('public/inventory/dir.php') ?>" class="d-block text-white text-decoration-none mb-3 opacity-75 hover-opacity-100"><i class="fas fa-list-alt me-2"></i> DIR Details</a>
-                <a href="<?= url('public/inventory/pir.php') ?>" class="d-block text-white text-decoration-none mb-3 opacity-75 hover-opacity-100"><i class="fas fa-clipboard-list me-2"></i> PIR Details</a>
-                
-                <hr class="border-secondary my-4">
-                
-                <a href="<?= url('public/admin/users.php') ?>" class="d-block text-white text-decoration-none mb-3 fw-bold opacity-100"><i class="fas fa-users me-2"></i> User Management</a>
-                <a href="<?= url('public/admin/settings.php') ?>" class="d-block text-white text-decoration-none mb-3 opacity-75 hover-opacity-100"><i class="fas fa-cogs me-2"></i> Settings</a>
-                <a href="<?= url('public/logout.php') ?>" class="d-block text-danger text-decoration-none mt-5"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+
+<!-- Header Actions -->
+<div class="flex flex-wrap gap-3 mb-6">
+    <button onclick="document.getElementById('addModal').classList.remove('hidden')"
+        class="btn-primary px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 shadow-lg">
+        <i class="fas fa-user-plus"></i> Add User
+    </button>
+    <button onclick="document.getElementById('importModal').classList.remove('hidden')"
+        class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 shadow-lg transition-colors">
+        <i class="fas fa-file-csv"></i> Import CSV
+    </button>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Total Users</p>
+                <p class="text-2xl font-bold text-gray-800"><?= count($users) ?></p>
             </div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="flex-grow-1 p-4 bg-light">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="fw-light text-primary">User Management</h2>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-success shadow-sm" data-bs-toggle="modal" data-bs-target="#importModal"><i class="fas fa-file-csv me-2"></i>Import CSV</button>
-                    <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addModal"><i class="fas fa-user-plus me-2"></i>Add User</button>
-                </div>
-            </div>
-
-            <?php if ($msg = flash('success')): ?>
-                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm"><?= $msg ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-            <?php endif; ?>
-            <?php if ($msg = flash('error')): ?>
-                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm"><?= $msg ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-            <?php endif; ?>
-
-            <div class="card border-0 shadow-sm animate-fade-in">
-                <div class="card-body">
-                    <form method="POST" id="bulkForm">
-                        <input type="hidden" name="action" value="bulk_delete">
-                        
-                        <div class="mb-3 d-flex justify-content-between align-items-center">
-                            <span class="text-muted small">Manage system access and roles</span>
-                            <button type="submit" class="btn btn-danger btn-sm d-none" id="deleteBtn" onclick="return confirm('Delete selected users?')">
-                                <i class="fas fa-trash me-2"></i>Delete Selected
-                            </button>
-                        </div>
-
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle" id="userTable">
-                                <thead class="bg-light">
-                                    <tr>
-                                        <th style="width: 40px;"><input type="checkbox" class="form-check-input" id="selectAll"></th>
-                                        <th>AMS ID</th>
-                                        <th>Name</th>
-                                        <th>Role</th>
-                                        <th>Department</th>
-                                        <th>Email</th>
-                                        <th>Mobile</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($users as $u): ?>
-                                    <tr>
-                                        <td><input type="checkbox" name="selected_ids[]" value="<?= $u['id'] ?>" class="form-check-input user-check"></td>
-                                        <td class="fw-bold"><?= htmlspecialchars($u['AMS_id']) ?></td>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <?php if(!empty($u['profile_pic'])): ?>
-                                                    <img src="<?= asset('uploads/profiles/' . $u['profile_pic']) ?>" class="rounded-circle me-2" width="32" height="32" style="object-fit:cover;">
-                                                <?php else: ?>
-                                                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-2" style="width:32px; height:32px; font-size:12px;">
-                                                        <?= strtoupper(substr($u['emp_name'], 0, 1)) ?>
-                                                    </div>
-                                                <?php endif; ?>
-                                                <?= htmlspecialchars($u['emp_name']) ?>
-                                            </div>
-                                        </td>
-                                        <td><span class="badge bg-label-primary"><?= ucfirst($u['user_priv']) ?></span></td>
-                                        <td><?= htmlspecialchars($u['department'] ?? 'N/A') ?></td>
-                                        <td><?= htmlspecialchars($u['email_id']) ?></td>
-                                        <td><?= htmlspecialchars($u['mobile'] ?? '-') ?></td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </form>
-                </div>
+            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-users text-blue-600"></i>
             </div>
         </div>
     </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Admins</p>
+                <p class="text-2xl font-bold text-gray-800">
+                    <?= count(array_filter($users, fn($u) => $u['role'] === 'admin')) ?></p>
+            </div>
+            <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-user-shield text-purple-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Supervisors</p>
+                <p class="text-2xl font-bold text-gray-800">
+                    <?= count(array_filter($users, fn($u) => $u['role'] === 'supervisor')) ?></p>
+            </div>
+            <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-user-tie text-amber-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Active</p>
+                <p class="text-2xl font-bold text-gray-800">
+                    <?= count(array_filter($users, fn($u) => $u['is_active'])) ?></p>
+            </div>
+            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-check-circle text-green-600"></i>
+            </div>
+        </div>
+    </div>
+</div>
 
-    <!-- Add User Modal -->
-    <div class="modal fade" id="addModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title">Add New User</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form method="POST">
-                        <input type="hidden" name="action" value="add_user">
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-secondary">AMS ID</label>
-                            <input type="text" name="ams_id" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-secondary">Full Name</label>
-                            <input type="text" name="emp_name" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-secondary">Email</label>
-                            <input type="email" name="email" class="form-control" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label small fw-bold text-secondary">Role</label>
-                                <select name="role" class="form-select">
-                                    <option value="user">Staff User</option>
-                                    <option value="admin">Admin</option>
-                                    <option value="supervisor">Supervisor</option>
-                                </select>
+<!-- Users Table -->
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+        <h3 class="font-semibold text-gray-800">All Users</h3>
+        <input type="text" id="searchInput" placeholder="Search users..."
+            class="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full" id="usersTable">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">AMS ID</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                <?php foreach ($users as $u): ?>
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                                    <?= strtoupper(substr($u['emp_name'], 0, 1)) ?>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800"><?= Security::escape($u['emp_name']) ?></p>
+                                    <p class="text-sm text-gray-500"><?= Security::escape($u['email_id']) ?></p>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label small fw-bold text-secondary">Department</label>
-                                <input type="text" name="department" class="form-control">
+                        </td>
+                        <td class="px-4 py-3 font-mono text-sm"><?= Security::escape($u['ams_id']) ?></td>
+                        <td class="px-4 py-3">
+                            <span
+                                class="px-2 py-1 text-xs font-semibold rounded-lg 
+                            <?= $u['role'] === 'admin' ? 'bg-purple-100 text-purple-700' :
+                                ($u['role'] === 'supervisor' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700') ?>">
+                                <?= ucfirst($u['role']) ?>
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-600"><?= Security::escape($u['department_code'] ?? '-') ?>
+                        </td>
+                        <td class="px-4 py-3">
+                            <?php if ($u['is_active']): ?>
+                                <span
+                                    class="px-2 py-1 text-xs font-semibold rounded-lg bg-green-100 text-green-700">Active</span>
+                            <?php else: ?>
+                                <span class="px-2 py-1 text-xs font-semibold rounded-lg bg-red-100 text-red-700">Inactive</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex gap-2">
+                                <button onclick="editUser(<?= htmlspecialchars(json_encode($u)) ?>)"
+                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <form method="POST" class="inline" onsubmit="return confirm('Delete this user?')">
+                                    <?= Security::csrfField() ?>
+                                    <input type="hidden" name="action" value="bulk_delete">
+                                    <input type="hidden" name="selected_ids[]" value="<?= $u['id'] ?>">
+                                    <button type="submit"
+                                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-secondary">Password (Default: serc@123)</label>
-                            <input type="password" name="password" class="form-control" placeholder="Leave blank for default">
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">Create User</button>
-                        </div>
-                    </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div id="addModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-800">Add New User</h3>
+            <button onclick="document.getElementById('addModal').classList.add('hidden')"
+                class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="POST" class="p-6 space-y-4">
+            <?= Security::csrfField() ?>
+            <input type="hidden" name="action" value="add_user">
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">AMS ID *</label>
+                    <input type="text" name="ams_id" required
+                        class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+                    <select name="role"
+                        class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="employee">Employee</option>
+                        <option value="supervisor">Supervisor</option>
+                        <option value="admin">Admin</option>
+                    </select>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Import CSV Modal -->
-    <div class="modal fade" id="importModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title">Import Users CSV</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                <input type="text" name="emp_name" required
+                    class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <input type="email" name="email" required
+                    class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <select name="department_id"
+                    class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">-- Select Department --</option>
+                    <?php foreach ($departments as $d): ?>
+                        <option value="<?= $d['id'] ?>"><?= Security::escape($d['code'] . ' - ' . $d['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input type="password" name="password" placeholder="Default: serc@123"
+                    class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <button type="submit" class="w-full btn-primary py-3 rounded-xl font-semibold">
+                <i class="fas fa-user-plus mr-2"></i> Create User
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div id="importModal"
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-800">Import Users from CSV</h3>
+            <button onclick="document.getElementById('importModal').classList.add('hidden')"
+                class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="POST" enctype="multipart/form-data" class="p-6">
+            <?= Security::csrfField() ?>
+            <input type="hidden" name="action" value="import_csv">
+
+            <div class="text-center mb-6">
+                <i class="fas fa-file-csv text-5xl text-emerald-500 mb-4"></i>
+                <p class="text-sm text-gray-500">CSV Format: AMS_ID, Name, Email, Password, Role, Department_ID</p>
+            </div>
+
+            <input type="file" name="csv_file" accept=".csv" required
+                class="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl mb-4 cursor-pointer hover:border-blue-500 transition-colors">
+
+            <button type="submit"
+                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold transition-colors">
+                <i class="fas fa-upload mr-2"></i> Upload & Import
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-800">Edit User</h3>
+            <button onclick="document.getElementById('editModal').classList.add('hidden')"
+                class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="POST" class="p-6 space-y-4">
+            <?= Security::csrfField() ?>
+            <input type="hidden" name="action" value="update_user">
+            <input type="hidden" name="user_id" id="edit_user_id">
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                <input type="text" name="emp_name" id="edit_emp_name" required
+                    class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <input type="email" name="email" id="edit_email" required
+                    class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select name="role" id="edit_role"
+                        class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="employee">Employee</option>
+                        <option value="supervisor">Supervisor</option>
+                        <option value="admin">Admin</option>
+                    </select>
                 </div>
-                <div class="modal-body text-center">
-                    <div class="mb-4">
-                        <i class="fas fa-file-csv fa-3x text-success mb-3"></i>
-                        <p class="text-muted small">Upload a CSV file with the following columns:<br>
-                        <strong>AMS_ID, Name, Email, Password, Role, Department</strong></p>
-                    </div>
-                    <form method="POST" enctype="multipart/form-data">
-                        <input type="hidden" name="action" value="import_csv">
-                        <input type="file" name="csv_file" class="form-control mb-3" accept=".csv" required>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-success">Upload & Import</button>
-                        </div>
-                    </form>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                    <select name="department_id" id="edit_department_id"
+                        class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- None --</option>
+                        <?php foreach ($departments as $d): ?>
+                            <option value="<?= $d['id'] ?>"><?= Security::escape($d['code']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
             </div>
-        </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <input type="password" name="password" placeholder="Leave blank to keep current"
+                    class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="is_active" id="edit_is_active" class="w-4 h-4 text-blue-600 rounded">
+                <label for="edit_is_active" class="text-sm text-gray-700">Active User</label>
+            </div>
+
+            <button type="submit" class="w-full btn-primary py-3 rounded-xl font-semibold">
+                <i class="fas fa-save mr-2"></i> Save Changes
+            </button>
+        </form>
     </div>
+</div>
 
-    <!-- Scripts -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            // DataTables
-            $('#userTable').DataTable({
-                pageLength: 25,
-                language: { searchPlaceholder: "Search users..." }
-            });
-
-            // Bulk Select
-            $('#selectAll').change(function() {
-                $('.user-check').prop('checked', $(this).prop('checked'));
-                toggleDeleteBtn();
-            });
-
-            $(document).on('change', '.user-check', function() {
-                toggleDeleteBtn();
-            });
-
-            function toggleDeleteBtn() {
-                if ($('.user-check:checked').length > 0) {
-                    $('#deleteBtn').removeClass('d-none');
-                } else {
-                    $('#deleteBtn').addClass('d-none');
-                }
-            }
+<script>
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', function () {
+        const filter = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#usersTable tbody tr');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
         });
-    </script>
-</body>
-</html>
+    });
+
+    // Edit user
+    function editUser(user) {
+        document.getElementById('edit_user_id').value = user.id;
+        document.getElementById('edit_emp_name').value = user.emp_name;
+        document.getElementById('edit_email').value = user.email_id;
+        document.getElementById('edit_role').value = user.role;
+        document.getElementById('edit_department_id').value = user.department_id || '';
+        document.getElementById('edit_is_active').checked = user.is_active == 1;
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+</script>
+
+<?php
+$content = ob_get_clean();
+include __DIR__ . '/../../templates/layout.php';

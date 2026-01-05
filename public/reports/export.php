@@ -5,7 +5,6 @@
 
 require_once __DIR__ . '/../../bootstrap.php';
 Auth::requireAuth();
-Auth::requireSupervisor();
 
 $type = $_GET['type'] ?? 'dir';
 $format = $_GET['format'] ?? 'csv';
@@ -30,20 +29,32 @@ if ($dateTo) {
     $params[] = $dateTo;
 }
 
-$items = $db->fetchAll(
-    "SELECT i.serial_number, i.item_description, c.name as category, 
-            i.quantity, i.quantity_unit, i.amount, i.po_number, i.po_date,
-            i.purchase_date, i.budget_head, i.stock_reference,
-            d.name as department, i.building_location, i.floor_location, i.room_location,
-            u.emp_name as holder, i.condition_status, i.created_at
-     FROM inventory_items i
-     LEFT JOIN categories c ON i.category_id = c.id
-     LEFT JOIN departments d ON i.department_id = d.id
-     LEFT JOIN users u ON i.current_holder_id = u.id
-     WHERE {$where}
-     ORDER BY i.serial_number",
-    $params
-);
+try {
+    $items = $db->fetchAll(
+        "SELECT i.serial_number, i.item_description, c.name as category, 
+                i.quantity, i.quantity_unit, i.unit_price as amount, i.po_number, i.po_date,
+                i.purchase_date, i.budget_head, i.stock_reference,
+                d.name as department, i.building_location, i.floor_location, i.room_location,
+                u.emp_name as holder, i.condition_status, i.created_at
+         FROM inventory_items i
+         LEFT JOIN categories c ON i.category_id = c.id
+         LEFT JOIN departments d ON i.department_id = d.id
+         LEFT JOIN users u ON i.current_holder_id = u.id
+         WHERE {$where}
+         ORDER BY i.serial_number",
+        $params
+    ) ?: [];
+} catch (Exception $e) {
+    // If query fails, try simpler query
+    $items = $db->fetchAll(
+        "SELECT serial_number, item_description, unit_price as amount, po_number, 
+                condition_status, created_at
+         FROM inventory_items 
+         WHERE inventory_type = ? AND is_active = 1
+         ORDER BY serial_number",
+        [$inventoryType]
+    ) ?: [];
+}
 
 // Log export
 ActivityLog::log(

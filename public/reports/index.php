@@ -1,7 +1,7 @@
 <?php
 /**
- * Enhanced Reports Dashboard
- * Analytics, Charts, and Export Options
+ * Reports & Analytics Dashboard
+ * Modern Fluent UI Design with layout template
  */
 require_once __DIR__ . '/../../bootstrap.php';
 
@@ -13,13 +13,13 @@ $db = Database::getInstance();
 $stats = [
     'total_dir' => $db->fetchValue("SELECT COUNT(*) FROM inventory_items WHERE inventory_type = 'dir' AND is_active = 1") ?? 0,
     'total_pir' => $db->fetchValue("SELECT COUNT(*) FROM inventory_items WHERE inventory_type = 'pir' AND is_active = 1") ?? 0,
-    'total_value' => $db->fetchValue("SELECT SUM(amount) FROM inventory_items WHERE is_active = 1") ?? 0,
+    'total_value' => $db->fetchValue("SELECT SUM(unit_price) FROM inventory_items WHERE is_active = 1") ?? 0,
     'pending_transfers' => $db->fetchValue("SELECT COUNT(*) FROM transfer_requests WHERE status IN ('pending_hod', 'pending_supervisor')") ?? 0,
 ];
 
 // Department-wise distribution
 $deptStats = $db->fetchAll(
-    "SELECT d.name, d.code, COUNT(i.id) as count, COALESCE(SUM(i.amount), 0) as value
+    "SELECT d.name, d.code, COUNT(i.id) as count, COALESCE(SUM(i.unit_price), 0) as value
      FROM departments d
      LEFT JOIN inventory_items i ON d.id = i.department_id AND i.is_active = 1
      GROUP BY d.id, d.name, d.code
@@ -28,7 +28,7 @@ $deptStats = $db->fetchAll(
 
 // Category-wise distribution
 $catStats = $db->fetchAll(
-    "SELECT c.name, COUNT(i.id) as count, COALESCE(SUM(i.amount), 0) as value
+    "SELECT c.name, COUNT(i.id) as count, COALESCE(SUM(i.unit_price), 0) as value
      FROM categories c
      LEFT JOIN inventory_items i ON c.id = i.category_id AND i.is_active = 1
      GROUP BY c.id, c.name
@@ -53,30 +53,6 @@ $monthlyTrend = $db->fetchAll(
      ORDER BY month"
 ) ?: [];
 
-// Expiring warranties
-$expiringWarranties = $db->fetchAll(
-    "SELECT serial_number, item_description, warranty_expiry, d.name as department
-     FROM inventory_items i
-     LEFT JOIN departments d ON i.department_id = d.id
-     WHERE i.is_active = 1 
-     AND warranty_expiry IS NOT NULL 
-     AND warranty_expiry BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY)
-     ORDER BY warranty_expiry
-     LIMIT 10"
-) ?: [];
-
-// Expiring AMCs
-$expiringAmcs = $db->fetchAll(
-    "SELECT serial_number, item_description, amc_expiry, d.name as department
-     FROM inventory_items i
-     LEFT JOIN departments d ON i.department_id = d.id
-     WHERE i.is_active = 1 
-     AND amc_expiry IS NOT NULL 
-     AND amc_expiry BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY)
-     ORDER BY amc_expiry
-     LIMIT 10"
-) ?: [];
-
 // Old items (> 5 years)
 $oldItemsCount = $db->fetchValue(
     "SELECT COUNT(*) FROM inventory_items 
@@ -84,8 +60,8 @@ $oldItemsCount = $db->fetchValue(
 ) ?? 0;
 
 // Prepare chart data
-$deptChartData = json_encode(array_map(fn($d) => ['name' => $d['name'], 'count' => (int)$d['count'], 'value' => (float)$d['value']], $deptStats));
-$catChartData = json_encode(array_map(fn($c) => ['name' => $c['name'], 'count' => (int)$c['count']], $catStats));
+$deptChartData = json_encode(array_map(fn($d) => ['name' => $d['name'], 'count' => (int) $d['count'], 'value' => (float) $d['value']], $deptStats));
+$catChartData = json_encode(array_map(fn($c) => ['name' => $c['name'], 'count' => (int) $c['count']], $catStats));
 $conditionChartData = json_encode($conditionStats);
 
 // Process monthly trend for chart
@@ -104,9 +80,9 @@ foreach ($months as $month) {
 }
 foreach ($monthlyTrend as $row) {
     if ($row['inventory_type'] === 'dir') {
-        $dirCounts[$row['month']] = (int)$row['count'];
+        $dirCounts[$row['month']] = (int) $row['count'];
     } else {
-        $pirCounts[$row['month']] = (int)$row['count'];
+        $pirCounts[$row['month']] = (int) $row['count'];
     }
 }
 $monthlyChartData = json_encode([
@@ -116,464 +92,350 @@ $monthlyChartData = json_encode([
 ]);
 
 $pageTitle = 'Reports & Analytics';
+$pageSubtitle = 'Asset Management Insights';
+ob_start();
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $pageTitle ?> - <?= APP_NAME ?></title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <style>
-        :root {
-            --primary: #4F46E5;
-            --dark: #1E293B;
-            --light: #F8FAFC;
-            --success: #10B981;
-            --warning: #F59E0B;
-            --danger: #EF4444;
-        }
-        
-        body { 
-            font-family: 'Noto Sans', sans-serif; 
-            background: var(--light); 
-            color: #334155; 
-        }
-        
-        .sidebar { 
-            width: 260px; 
-            background: var(--dark); 
-            min-height: 100vh; 
-            position: fixed; 
-        }
-        
-        .content { margin-left: 260px; padding: 2rem; }
-        
-        .nav-link { 
-            color: #cbd5e1; 
-            padding: 0.8rem 1.5rem; 
-            display: block; 
-            text-decoration: none;
-            border-left: 3px solid transparent;
-        }
-        
-        .nav-link:hover, .nav-link.active { 
-            background: #0f172a; 
-            color: white;
-            border-left-color: var(--primary);
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-        }
-        
-        .stat-card.blue::before { background: var(--primary); }
-        .stat-card.green::before { background: var(--success); }
-        .stat-card.yellow::before { background: var(--warning); }
-        .stat-card.red::before { background: var(--danger); }
-        
-        .stat-value { font-size: 2.5rem; font-weight: 700; color: var(--dark); }
-        .stat-label { color: #64748b; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
-        
-        .report-card {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            margin-bottom: 1.5rem;
-        }
-        
-        .report-card .card-header {
-            background: transparent;
-            border-bottom: 1px solid #f1f5f9;
-            font-weight: 600;
-            padding: 1rem 1.5rem;
-        }
-        
-        .report-card .card-body { padding: 1.5rem; }
-        
-        .export-btn {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 1rem 1.5rem;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            text-decoration: none;
-            color: var(--dark);
-            transition: all 0.2s;
-        }
-        
-        .export-btn:hover {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-        
-        .export-btn i { font-size: 1.5rem; }
-        
-        .expiry-list { max-height: 300px; overflow-y: auto; }
-        
-        .expiry-item {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid #f1f5f9;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .expiry-item:last-child { border-bottom: none; }
-        
-        .expiry-badge { 
-            font-size: 0.75rem; 
-            padding: 0.25rem 0.5rem; 
-            border-radius: 6px;
-        }
-        .expiry-badge.warning { background: #fef3c7; color: #92400e; }
-        .expiry-badge.danger { background: #fee2e2; color: #991b1b; }
-    </style>
-</head>
-<body>
-    <!-- Sidebar -->
-    <div class="sidebar py-4">
-        <div class="px-4 mb-4">
-            <h4 class="text-white fw-bold"><i class="fas fa-cube me-2"></i>AMS</h4>
-        </div>
-        <a href="<?= url('public/dashboard.php') ?>" class="nav-link"><i class="fas fa-home me-2"></i> Dashboard</a>
-        <a href="<?= url('public/inventory/dir.php') ?>" class="nav-link"><i class="fas fa-list-alt me-2"></i> DIR Inventory</a>
-        <a href="<?= url('public/inventory/pir.php') ?>" class="nav-link"><i class="fas fa-clipboard-list me-2"></i> PIR Inventory</a>
-        <a href="<?= url('public/reports/index.php') ?>" class="nav-link active"><i class="fas fa-chart-pie me-2"></i> Reports</a>
-        <?php if (Auth::isAdmin()): ?>
-        <hr class="my-3 mx-3 border-secondary">
-        <a href="<?= url('public/admin/settings.php') ?>" class="nav-link"><i class="fas fa-cogs me-2"></i> Settings</a>
-        <a href="<?= url('public/logs/activity.php') ?>" class="nav-link"><i class="fas fa-history me-2"></i> Logs</a>
-        <?php endif; ?>
-        <hr class="my-3 mx-3 border-secondary">
-        <a href="<?= url('public/logout.php') ?>" class="nav-link text-danger"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
-    </div>
 
-    <!-- Main Content -->
-    <div class="content">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all">
+        <div class="flex items-center gap-4">
+            <div
+                class="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-lg">
+                <i class="fas fa-building text-white text-xl"></i>
+            </div>
             <div>
-                <h2 class="fw-bold text-dark mb-1">Reports & Analytics</h2>
-                <p class="text-muted mb-0">Asset Management Insights</p>
-            </div>
-        </div>
-
-        <!-- Stats Row -->
-        <div class="row g-4 mb-4">
-            <div class="col-md-3">
-                <div class="stat-card blue">
-                    <div class="stat-value"><?= number_format($stats['total_dir']) ?></div>
-                    <div class="stat-label">DIR Items</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card green">
-                    <div class="stat-value"><?= number_format($stats['total_pir']) ?></div>
-                    <div class="stat-label">PIR Items</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card yellow">
-                    <div class="stat-value"><?= formatCurrency($stats['total_value']) ?></div>
-                    <div class="stat-label">Total Value</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card red">
-                    <div class="stat-value"><?= number_format($oldItemsCount) ?></div>
-                    <div class="stat-label">Old Items (5+ yrs)</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <!-- Charts Column -->
-            <div class="col-lg-8">
-                <!-- Monthly Trend -->
-                <div class="report-card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-chart-line me-2 text-primary"></i>Monthly Trend</span>
-                        <span class="badge bg-light text-dark">Last 12 Months</span>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="monthlyChart" height="120"></canvas>
-                    </div>
-                </div>
-
-                <!-- Distribution Charts -->
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="report-card">
-                            <div class="card-header">
-                                <i class="fas fa-building me-2 text-primary"></i>By Department
-                            </div>
-                            <div class="card-body">
-                                <canvas id="deptChart" height="200"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="report-card">
-                            <div class="card-header">
-                                <i class="fas fa-tags me-2 text-primary"></i>By Category
-                            </div>
-                            <div class="card-body">
-                                <canvas id="catChart" height="200"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Condition Chart -->
-                <div class="report-card">
-                    <div class="card-header">
-                        <i class="fas fa-heartbeat me-2 text-primary"></i>Asset Condition
-                    </div>
-                    <div class="card-body">
-                        <canvas id="conditionChart" height="80"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Column -->
-            <div class="col-lg-4">
-                <!-- Export Options -->
-                <div class="report-card">
-                    <div class="card-header">
-                        <i class="fas fa-file-export me-2 text-primary"></i>Export Reports
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-3">
-                            <a href="<?= url('public/reports/export.php?type=dir&format=csv') ?>" class="export-btn">
-                                <i class="fas fa-file-csv text-success"></i>
-                                <div>
-                                    <strong>DIR Inventory</strong>
-                                    <small class="d-block text-muted">Export as Excel/CSV</small>
-                                </div>
-                            </a>
-                            <a href="<?= url('public/reports/export.php?type=pir&format=csv') ?>" class="export-btn">
-                                <i class="fas fa-file-csv text-primary"></i>
-                                <div>
-                                    <strong>PIR Inventory</strong>
-                                    <small class="d-block text-muted">Export as Excel/CSV</small>
-                                </div>
-                            </a>
-                            <a href="<?= url('public/reports/export.php?type=dir&format=pdf') ?>" class="export-btn">
-                                <i class="fas fa-file-pdf text-danger"></i>
-                                <div>
-                                    <strong>Print Report</strong>
-                                    <small class="d-block text-muted">PDF with all assets</small>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Expiring Warranties -->
-                <?php if (!empty($expiringWarranties)): ?>
-                <div class="report-card">
-                    <div class="card-header">
-                        <i class="fas fa-shield-alt me-2 text-warning"></i>Expiring Warranties
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="expiry-list">
-                            <?php foreach ($expiringWarranties as $item): 
-                                $daysLeft = (strtotime($item['warranty_expiry']) - time()) / 86400;
-                            ?>
-                            <div class="expiry-item">
-                                <div>
-                                    <strong class="d-block"><?= Security::escape($item['serial_number']) ?></strong>
-                                    <small class="text-muted"><?= Security::escape(truncate($item['item_description'], 30)) ?></small>
-                                </div>
-                                <span class="expiry-badge <?= $daysLeft < 15 ? 'danger' : 'warning' ?>">
-                                    <?= ceil($daysLeft) ?> days
-                                </span>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                </div>
-                <?php endif; ?>
-
-                <!-- Expiring AMCs -->
-                <?php if (!empty($expiringAmcs)): ?>
-                <div class="report-card">
-                    <div class="card-header">
-                        <i class="fas fa-wrench me-2 text-danger"></i>Expiring AMCs
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="expiry-list">
-                            <?php foreach ($expiringAmcs as $item): 
-                                $daysLeft = (strtotime($item['amc_expiry']) - time()) / 86400;
-                            ?>
-                            <div class="expiry-item">
-                                <div>
-                                    <strong class="d-block"><?= Security::escape($item['serial_number']) ?></strong>
-                                    <small class="text-muted"><?= Security::escape(truncate($item['item_description'], 30)) ?></small>
-                                </div>
-                                <span class="expiry-badge <?= $daysLeft < 15 ? 'danger' : 'warning' ?>">
-                                    <?= ceil($daysLeft) ?> days
-                                </span>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                </div>
-                <?php endif; ?>
-
-                <!-- Department Summary -->
-                <div class="report-card">
-                    <div class="card-header">
-                        <i class="fas fa-table me-2 text-primary"></i>Department Summary
-                    </div>
-                    <div class="card-body p-0">
-                        <table class="table table-sm mb-0">
-                            <thead class="bg-light">
-                                <tr>
-                                    <th>Department</th>
-                                    <th class="text-end">Items</th>
-                                    <th class="text-end">Value</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach (array_slice($deptStats, 0, 8) as $dept): ?>
-                                <tr>
-                                    <td><?= Security::escape($dept['code']) ?></td>
-                                    <td class="text-end"><?= number_format($dept['count']) ?></td>
-                                    <td class="text-end"><?= formatCurrency($dept['value']) ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <p class="text-3xl font-bold text-gray-800"><?= number_format($stats['total_dir']) ?></p>
+                <p class="text-sm text-gray-500 font-medium">DIR Items</p>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Monthly Trend Chart
-        const monthlyData = <?= $monthlyChartData ?>;
-        new Chart(document.getElementById('monthlyChart'), {
-            type: 'line',
-            data: {
-                labels: monthlyData.labels,
-                datasets: [
-                    {
-                        label: 'DIR',
-                        data: monthlyData.dir,
-                        borderColor: '#4F46E5',
-                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    },
-                    {
-                        label: 'PIR',
-                        data: monthlyData.pir,
-                        borderColor: '#10B981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { position: 'top' } },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all">
+        <div class="flex items-center gap-4">
+            <div
+                class="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-lg">
+                <i class="fas fa-user-tag text-white text-xl"></i>
+            </div>
+            <div>
+                <p class="text-3xl font-bold text-gray-800"><?= number_format($stats['total_pir']) ?></p>
+                <p class="text-sm text-gray-500 font-medium">PIR Items</p>
+            </div>
+        </div>
+    </div>
 
-        // Department Chart
-        const deptData = <?= $deptChartData ?>;
-        new Chart(document.getElementById('deptChart'), {
-            type: 'doughnut',
-            data: {
-                labels: deptData.map(d => d.name),
-                datasets: [{
-                    data: deptData.map(d => d.count),
-                    backgroundColor: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                cutout: '60%',
-                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
-            }
-        });
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all">
+        <div class="flex items-center gap-4">
+            <div
+                class="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
+                <i class="fas fa-rupee-sign text-white text-xl"></i>
+            </div>
+            <div>
+                <p class="text-2xl font-bold text-gray-800"><?= formatCurrency($stats['total_value']) ?></p>
+                <p class="text-sm text-gray-500 font-medium">Total Value</p>
+            </div>
+        </div>
+    </div>
 
-        // Category Chart
-        const catData = <?= $catChartData ?>;
-        new Chart(document.getElementById('catChart'), {
-            type: 'doughnut',
-            data: {
-                labels: catData.map(c => c.name),
-                datasets: [{
-                    data: catData.map(c => c.count),
-                    backgroundColor: ['#3B82F6', '#22C55E', '#EAB308', '#EF4444', '#A855F7', '#14B8A6', '#F97316'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                cutout: '60%',
-                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
-            }
-        });
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all">
+        <div class="flex items-center gap-4">
+            <div
+                class="w-14 h-14 rounded-xl bg-gradient-to-br from-rose-500 to-red-500 flex items-center justify-center shadow-lg">
+                <i class="fas fa-clock text-white text-xl"></i>
+            </div>
+            <div>
+                <p class="text-3xl font-bold text-gray-800"><?= number_format($oldItemsCount) ?></p>
+                <p class="text-sm text-gray-500 font-medium">Old Items (5+ yrs)</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-        // Condition Chart
-        const conditionColors = {
-            'new': '#10B981',
-            'good': '#3B82F6',
-            'fair': '#F59E0B',
-            'poor': '#EF4444',
-            'non_serviceable': '#6B7280',
-            'scrapped': '#1F2937'
-        };
-        const conditionData = <?= $conditionChartData ?>;
-        new Chart(document.getElementById('conditionChart'), {
-            type: 'bar',
-            data: {
-                labels: conditionData.map(c => c.condition_status.replace('_', ' ').toUpperCase()),
-                datasets: [{
-                    data: conditionData.map(c => c.count),
-                    backgroundColor: conditionData.map(c => conditionColors[c.condition_status] || '#6B7280'),
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                indexAxis: 'y',
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true } }
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Charts Column -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Monthly Trend -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+                        <i class="fas fa-chart-line text-indigo-600"></i>
+                    </div>
+                    <span class="font-semibold text-gray-800">Monthly Trend</span>
+                </div>
+                <span class="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-medium">Last 12 Months</span>
+            </div>
+            <div class="p-6">
+                <canvas id="monthlyChart" height="120"></canvas>
+            </div>
+        </div>
+
+        <!-- Distribution Charts -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-cyan-100 flex items-center justify-center">
+                            <i class="fas fa-building text-blue-600"></i>
+                        </div>
+                        <span class="font-semibold text-gray-800">By Department</span>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <canvas id="deptChart" height="220"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center">
+                            <i class="fas fa-tags text-green-600"></i>
+                        </div>
+                        <span class="font-semibold text-gray-800">By Category</span>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <canvas id="catChart" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Condition Chart -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-100 to-yellow-100 flex items-center justify-center">
+                        <i class="fas fa-heartbeat text-amber-600"></i>
+                    </div>
+                    <span class="font-semibold text-gray-800">Asset Condition</span>
+                </div>
+            </div>
+            <div class="p-6">
+                <canvas id="conditionChart" height="80"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="space-y-6">
+        <!-- Export Options -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+                        <i class="fas fa-file-export text-purple-600"></i>
+                    </div>
+                    <span class="font-semibold text-gray-800">Export Reports</span>
+                </div>
+            </div>
+            <div class="p-4 space-y-3">
+                <a href="<?= url('public/reports/export.php?type=dir&format=csv') ?>"
+                    class="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-white border border-gray-100 rounded-xl hover:border-green-300 hover:shadow-md transition-all group">
+                    <div
+                        class="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-500 transition-colors">
+                        <i class="fas fa-file-csv text-green-600 text-lg group-hover:text-white"></i>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">DIR Inventory</p>
+                        <p class="text-xs text-gray-500">Export as Excel/CSV</p>
+                    </div>
+                    <i class="fas fa-download ml-auto text-gray-300 group-hover:text-green-500"></i>
+                </a>
+
+                <a href="<?= url('public/reports/export.php?type=pir&format=csv') ?>"
+                    class="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-white border border-gray-100 rounded-xl hover:border-blue-300 hover:shadow-md transition-all group">
+                    <div
+                        class="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-500 transition-colors">
+                        <i class="fas fa-file-csv text-blue-600 text-lg group-hover:text-white"></i>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">PIR Inventory</p>
+                        <p class="text-xs text-gray-500">Export as Excel/CSV</p>
+                    </div>
+                    <i class="fas fa-download ml-auto text-gray-300 group-hover:text-blue-500"></i>
+                </a>
+
+                <a href="<?= url('public/reports/export.php?type=all&format=pdf') ?>"
+                    class="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-white border border-gray-100 rounded-xl hover:border-red-300 hover:shadow-md transition-all group">
+                    <div
+                        class="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center group-hover:bg-red-500 transition-colors">
+                        <i class="fas fa-file-pdf text-red-600 text-lg group-hover:text-white"></i>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Print Report</p>
+                        <p class="text-xs text-gray-500">PDF with all assets</p>
+                    </div>
+                    <i class="fas fa-download ml-auto text-gray-300 group-hover:text-red-500"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Department Summary Table -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-100 to-blue-100 flex items-center justify-center">
+                        <i class="fas fa-table text-cyan-600"></i>
+                    </div>
+                    <span class="font-semibold text-gray-800">Department Summary</span>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Dept</th>
+                            <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Items</th>
+                            <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <?php foreach (array_slice($deptStats, 0, 8) as $dept): ?>
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-4 py-3 font-medium text-gray-800"><?= Security::escape($dept['code']) ?></td>
+                                <td class="px-4 py-3 text-right text-gray-600"><?= number_format($dept['count']) ?></td>
+                                <td class="px-4 py-3 text-right font-medium text-gray-800">
+                                    <?= formatCurrency($dept['value']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Monthly Trend Chart
+    const monthlyData = <?= $monthlyChartData ?>;
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    const monthlyGradient1 = monthlyCtx.createLinearGradient(0, 0, 0, 200);
+    monthlyGradient1.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
+    monthlyGradient1.addColorStop(1, 'rgba(99, 102, 241, 0.01)');
+    const monthlyGradient2 = monthlyCtx.createLinearGradient(0, 0, 0, 200);
+    monthlyGradient2.addColorStop(0, 'rgba(16, 185, 129, 0.3)');
+    monthlyGradient2.addColorStop(1, 'rgba(16, 185, 129, 0.01)');
+
+    new Chart(monthlyCtx, {
+        type: 'line',
+        data: {
+            labels: monthlyData.labels.map(m => {
+                const [year, month] = m.split('-');
+                return new Date(year, month - 1).toLocaleDateString('en', { month: 'short', year: '2-digit' });
+            }),
+            datasets: [
+                {
+                    label: 'DIR',
+                    data: monthlyData.dir,
+                    borderColor: '#6366F1',
+                    backgroundColor: monthlyGradient1,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#6366F1'
+                },
+                {
+                    label: 'PIR',
+                    data: monthlyData.pir,
+                    borderColor: '#10B981',
+                    backgroundColor: monthlyGradient2,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#10B981'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'top' } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.03)' } },
+                x: { grid: { display: false } }
             }
-        });
-    </script>
-</body>
-</html>
+        }
+    });
+
+    // Department Chart
+    const deptData = <?= $deptChartData ?>;
+    new Chart(document.getElementById('deptChart'), {
+        type: 'doughnut',
+        data: {
+            labels: deptData.map(d => d.name),
+            datasets: [{
+                data: deptData.map(d => d.count),
+                backgroundColor: ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '65%',
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } } }
+        }
+    });
+
+    // Category Chart
+    const catData = <?= $catChartData ?>;
+    new Chart(document.getElementById('catChart'), {
+        type: 'doughnut',
+        data: {
+            labels: catData.map(c => c.name),
+            datasets: [{
+                data: catData.map(c => c.count),
+                backgroundColor: ['#3B82F6', '#22C55E', '#EAB308', '#EF4444', '#A855F7', '#14B8A6', '#F97316'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '65%',
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } } }
+        }
+    });
+
+    // Condition Chart
+    const conditionColors = {
+        'new': '#10B981',
+        'good': '#3B82F6',
+        'fair': '#F59E0B',
+        'poor': '#EF4444',
+        'non_serviceable': '#6B7280',
+        'scrapped': '#1F2937'
+    };
+    const conditionData = <?= $conditionChartData ?>;
+    new Chart(document.getElementById('conditionChart'), {
+        type: 'bar',
+        data: {
+            labels: conditionData.map(c => c.condition_status.replace('_', ' ').toUpperCase()),
+            datasets: [{
+                data: conditionData.map(c => c.count),
+                backgroundColor: conditionData.map(c => conditionColors[c.condition_status] || '#6B7280'),
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.03)' } },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+</script>
+
+<?php
+$content = ob_get_clean();
+include __DIR__ . '/../../templates/layout.php';
+?>

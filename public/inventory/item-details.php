@@ -249,7 +249,8 @@ ob_start();
                                     </div>
                                     <?php if ($transfer['transfer_slip_number']): ?>
                                         <p class="text-xs text-gray-500 mt-1">Slip:
-                                            <?= Security::escape($transfer['transfer_slip_number']) ?></p>
+                                            <?= Security::escape($transfer['transfer_slip_number']) ?>
+                                        </p>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -321,6 +322,11 @@ ob_start();
         <div class="bg-white rounded-2xl p-6 card-shadow">
             <h3 class="text-lg font-bold text-gray-800 mb-4">Actions</h3>
             <div class="space-y-2">
+                <a href="item-documents.php?id=<?= $item['id'] ?>"
+                    class="w-full flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200">
+                    <i class="fas fa-images"></i> Manage Documents
+                </a>
+
                 <?php if (Auth::isSupervisor()): ?>
                     <a href="<?= $item['inventory_type'] === 'dir' ? 'dir.php' : 'pir.php' ?>?action=edit&id=<?= $item['id'] ?>"
                         class="w-full flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200">
