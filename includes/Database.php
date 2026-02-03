@@ -137,6 +137,14 @@ class Database
     }
 
     /**
+     * Get last insert ID
+     */
+    public function lastInsertId()
+    {
+        return $this->pdo->lastInsertId();
+    }
+
+    /**
      * Prevent cloning
      */
     private function __clone()

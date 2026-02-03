@@ -33,14 +33,6 @@ $items = $db->fetchAll(
      ORDER BY i.id DESC"
 );
 
-// If new table is empty, try legacy table
-if (empty($items)) {
-    $legacyItems = $db->fetchAll("SELECT * FROM dir_details ORDER BY Item_ID DESC LIMIT 100");
-    if (!empty($legacyItems)) {
-        $items = $legacyItems;
-    }
-}
-
 // Get stats
 $totalValue = $db->fetchValue("SELECT SUM(unit_price) FROM inventory_items WHERE inventory_type = 'dir' AND is_active = 1") ?? 0;
 $totalCount = count($items);

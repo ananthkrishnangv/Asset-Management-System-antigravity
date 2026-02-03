@@ -151,9 +151,9 @@ ob_start();
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-4 overflow-hidden">
     <!-- Charts Column -->
-    <div class="lg:col-span-2 space-y-6">
+    <div class="xl:col-span-2 space-y-4 min-w-0">
         <!-- Monthly Trend -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -166,8 +166,8 @@ ob_start();
                 </div>
                 <span class="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-medium">Last 12 Months</span>
             </div>
-            <div class="p-6">
-                <canvas id="monthlyChart" height="120"></canvas>
+            <div class="p-4">
+                <canvas id="monthlyChart" height="70"></canvas>
             </div>
         </div>
 
@@ -183,8 +183,8 @@ ob_start();
                         <span class="font-semibold text-gray-800">By Department</span>
                     </div>
                 </div>
-                <div class="p-6">
-                    <canvas id="deptChart" height="220"></canvas>
+                <div class="p-4">
+                    <canvas id="deptChart" height="160"></canvas>
                 </div>
             </div>
 
@@ -198,8 +198,8 @@ ob_start();
                         <span class="font-semibold text-gray-800">By Category</span>
                     </div>
                 </div>
-                <div class="p-6">
-                    <canvas id="catChart" height="220"></canvas>
+                <div class="p-4">
+                    <canvas id="catChart" height="160"></canvas>
                 </div>
             </div>
         </div>
@@ -215,8 +215,8 @@ ob_start();
                     <span class="font-semibold text-gray-800">Asset Condition</span>
                 </div>
             </div>
-            <div class="p-6">
-                <canvas id="conditionChart" height="80"></canvas>
+            <div class="p-4">
+                <canvas id="conditionChart" height="60"></canvas>
             </div>
         </div>
     </div>
@@ -234,12 +234,12 @@ ob_start();
                     <span class="font-semibold text-gray-800">Export Reports</span>
                 </div>
             </div>
-            <div class="p-4 space-y-3">
-                <a href="<?= url('public/reports/export.php?type=dir&format=csv') ?>"
-                    class="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-white border border-gray-100 rounded-xl hover:border-green-300 hover:shadow-md transition-all group">
+            <div class="p-3 space-y-2">
+                <a href="<?= url('public/reports/export.php?type=dir&format=csv') ?>" class=" flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-white border border-gray-100
+                    rounded-xl hover:border-green-300 hover:shadow-md transition-all group">
                     <div
-                        class="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-500 transition-colors">
-                        <i class="fas fa-file-csv text-green-600 text-lg group-hover:text-white"></i>
+                        class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-500 transition-colors">
+                        <i class="fas fa-file-csv text-green-600 group-hover:text-white"></i>
                     </div>
                     <div>
                         <p class="font-semibold text-gray-800">DIR Inventory</p>
@@ -248,11 +248,11 @@ ob_start();
                     <i class="fas fa-download ml-auto text-gray-300 group-hover:text-green-500"></i>
                 </a>
 
-                <a href="<?= url('public/reports/export.php?type=pir&format=csv') ?>"
-                    class="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-white border border-gray-100 rounded-xl hover:border-blue-300 hover:shadow-md transition-all group">
+                <a href="<?= url('public/reports/export.php?type=pir&format=csv') ?>" class=" flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-white border border-gray-100
+                    rounded-xl hover:border-blue-300 hover:shadow-md transition-all group">
                     <div
-                        class="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-500 transition-colors">
-                        <i class="fas fa-file-csv text-blue-600 text-lg group-hover:text-white"></i>
+                        class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-500 transition-colors">
+                        <i class="fas fa-file-csv text-blue-600 group-hover:text-white"></i>
                     </div>
                     <div>
                         <p class="font-semibold text-gray-800">PIR Inventory</p>
@@ -261,11 +261,11 @@ ob_start();
                     <i class="fas fa-download ml-auto text-gray-300 group-hover:text-blue-500"></i>
                 </a>
 
-                <a href="<?= url('public/reports/export.php?type=all&format=pdf') ?>"
-                    class="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-white border border-gray-100 rounded-xl hover:border-red-300 hover:shadow-md transition-all group">
+                <a href="<?= url('public/reports/export.php?type=all&format=pdf') ?>" class=" flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-white border border-gray-100
+                    rounded-xl hover:border-red-300 hover:shadow-md transition-all group">
                     <div
-                        class="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center group-hover:bg-red-500 transition-colors">
-                        <i class="fas fa-file-pdf text-red-600 text-lg group-hover:text-white"></i>
+                        class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center group-hover:bg-red-500 transition-colors">
+                        <i class="fas fa-file-pdf text-red-600 group-hover:text-white"></i>
                     </div>
                     <div>
                         <p class="font-semibold text-gray-800">Print Report</p>
@@ -287,7 +287,7 @@ ob_start();
                     <span class="font-semibold text-gray-800">Department Summary</span>
                 </div>
             </div>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto max-h-64 overflow-y-auto">
                 <table class="w-full">
                     <thead class="bg-gray-50">
                         <tr>
@@ -302,7 +302,8 @@ ob_start();
                                 <td class="px-4 py-3 font-medium text-gray-800"><?= Security::escape($dept['code']) ?></td>
                                 <td class="px-4 py-3 text-right text-gray-600"><?= number_format($dept['count']) ?></td>
                                 <td class="px-4 py-3 text-right font-medium text-gray-800">
-                                    <?= formatCurrency($dept['value']) ?></td>
+                                    <?= formatCurrency($dept['value']) ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

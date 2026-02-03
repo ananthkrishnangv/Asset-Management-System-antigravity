@@ -145,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
     }
 
     $returns = $db->fetchAll(
-        "SELECT sr.*, i.serial_number, i.item_description, i.image_path,
+        "SELECT sr.*, i.serial_number, i.item_description, i.asset_image,
                 u.emp_name as returned_by_name, a.emp_name as approved_by_name
          FROM stores_returns sr
          JOIN inventory_items i ON sr.item_id = i.id
@@ -204,7 +204,8 @@ ob_start();
                             <p class="font-bold text-gray-800"><?= Security::escape($item['item_description']) ?></p>
                             <p class="text-sm text-blue-600 font-mono"><?= $item['serial_number'] ?></p>
                             <p class="text-sm text-gray-500 mt-1">Holder:
-                                <?= Security::escape($item['holder_name'] ?? 'N/A') ?></p>
+                                <?= Security::escape($item['holder_name'] ?? 'N/A') ?>
+                            </p>
                         </div>
                     </div>
                 </div>

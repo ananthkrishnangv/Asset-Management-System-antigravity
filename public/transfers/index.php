@@ -311,7 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
     }
 
     $sql = "SELECT tr.*, 
-                   i.serial_number, i.item_description, i.image_path,
+                   i.serial_number, i.item_description, i.asset_image,
                    fu.emp_name as from_user_name, tu.emp_name as to_user_name,
                    fd.name as from_dept_name, td.name as to_dept_name,
                    ru.emp_name as requester_name
@@ -556,8 +556,8 @@ ob_start();
         <div class="bg-white rounded-2xl p-6 card-shadow">
             <div class="flex items-start justify-between">
                 <div class="flex items-start gap-4">
-                    ${req.image_path ?
-                `<img src="../uploads/${req.image_path}" class="w-16 h-16 rounded-xl object-cover">` :
+                    ${req.asset_image ?
+                `<img src="../uploads/${req.asset_image}" class="w-16 h-16 rounded-xl object-cover">` :
                 `<div class="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center"><i class="fas fa-box text-gray-400"></i></div>`
             }
                     <div>

@@ -1,0 +1,66 @@
+FROM rockylinux:9
+
+# Install dependencies for Apache, MariaDB, and PHP
+RUN dnf update -y && \
+    dnf install -y \
+    httpd \
+    mariadb-server \
+    mariadb \
+    php \
+    php-mysqli \
+    php-pdo \
+    php-gd \
+    php-zip \
+    php-intl \
+    php-mbstring \
+    php-json \
+    mod_ssl \
+    procps-ng \
+    && dnf clean all
+
+# Configure PHP settings (optional but recommended)
+RUN sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 10M/' /etc/php.ini && \
+    sed -i 's/post_max_size = 8M/post_max_size = 10M/' /etc/php.ini
+
+# Setup Directories and Permissions
+WORKDIR /var/www/html
+
+# Clean default apache files
+RUN rm -rf /var/www/html/*
+
+# Copy Application Files
+COPY . /var/www/html/
+
+# Copy Apache Config
+COPY apache-config.conf /etc/httpd/conf.d/ams.conf
+# Disable default welcome page and remove default ssl config to prevent startup errors
+RUN rm -f /etc/httpd/conf.d/welcome.conf /etc/httpd/conf.d/ssl.conf
+
+# Setup Application Permissions
+RUN mkdir -p /var/www/html/uploads /var/www/html/backups /var/www/html/logs && \
+    chown -R apache:apache /var/www/html && \
+    chmod -R 755 /var/www/html && \
+    chmod -R 775 /var/www/html/uploads /var/www/html/backups /var/www/html/logs
+
+# Handle SSL Certificates (Assumed to be in local 'SSL Key' folder and copied over)
+# Adjusting path in apache config might be needed if it differs from default RHEL/CentOS path
+# For RHEL/Rocky, generic self-signed or provided keys usually go to /etc/pki/tls/certs/ and private/
+# But we will stick to the app's structure or symlink if needed. 
+# The application expects "/var/www/html/SSL Key/cert.[crt|key]" based on previous context?
+# Checking apache-config.conf in next step to be sure, but assuming we copy them:
+RUN chmod 600 "/var/www/html/SSL Key/cert.key" || true
+
+# Prepare Database Init Directory (scripts will be mounted or copied here)
+RUN mkdir -p /docker-entrypoint-initdb.d
+
+# Copy Start Script
+COPY start_services.sh /usr/local/bin/start_services.sh
+RUN chmod +x /usr/local/bin/start_services.sh
+
+# MariaDB Directories permissions
+RUN mkdir -p /var/lib/mysql /var/run/mariadb && \
+    chown -R mysql:mysql /var/lib/mysql /var/run/mariadb
+
+EXPOSE 80 443
+
+CMD ["/usr/local/bin/start_services.sh"]

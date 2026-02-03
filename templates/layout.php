@@ -59,6 +59,43 @@ try {
 
         * {
             font-family: var(--font-primary);
+            box-sizing: border-box;
+        }
+
+        /* Global width containment */
+        html,
+        body {
+            overflow-x: hidden;
+            max-width: 100vw;
+        }
+
+        .main-content {
+            max-width: calc(100vw - 16rem);
+            overflow-x: hidden;
+        }
+
+        .main-content main {
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        /* Force all grids and flex containers to not overflow */
+        .main-content .grid,
+        .main-content .flex {
+            max-width: 100%;
+        }
+
+        /* Tables should scroll horizontally within their container */
+        .main-content table {
+            display: block;
+            overflow-x: auto;
+            max-width: 100%;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                max-width: 100vw;
+            }
         }
 
         /* ═══════════════════════════════════════════════════════════════
@@ -379,8 +416,8 @@ try {
     <?= $additionalStyles ?? '' ?>
 </head>
 
-<body class="bg-gray-50">
-    <div class="flex min-h-screen">
+<body class="bg-gray-50 overflow-x-hidden">
+    <div class="flex min-h-screen max-w-full overflow-x-hidden">
         <!-- ═══════════════════════════════════════════════════════════════
              SIDEBAR - LIGHT FLUENT
              ═══════════════════════════════════════════════════════════════ -->
@@ -421,6 +458,14 @@ try {
                             class="nav-item <?= isCurrentPage('pir') ? 'active' : '' ?> flex items-center gap-3 px-4 py-3 text-gray-600 hover:text-gray-900 transition-all">
                             <i class="fas fa-user-tag w-5 text-center text-green-500"></i>
                             <span class="font-medium">PIR</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a href="<?= url('public/inventory/bulk-import.php') ?>"
+                            class="nav-item <?= isCurrentPage('bulk-import') ? 'active' : '' ?> flex items-center gap-3 px-4 py-3 text-gray-600 hover:text-gray-900 transition-all">
+                            <i class="fas fa-file-import w-5 text-center text-orange-500"></i>
+                            <span class="font-medium">Bulk Import</span>
                         </a>
                     </li>
 
@@ -510,6 +555,14 @@ try {
                                 <span class="font-medium">Settings</span>
                             </a>
                         </li>
+
+                        <li>
+                            <a href="<?= url('public/inventory/all.php') ?>"
+                                class="nav-item <?= isCurrentPage('all') ? 'active' : '' ?> flex items-center gap-3 px-4 py-3 text-gray-600 hover:text-gray-900 transition-all">
+                                <i class="fas fa-database w-5 text-center text-rose-500"></i>
+                                <span class="font-medium">All Inventory</span>
+                            </a>
+                        </li>
                     <?php endif; ?>
                 </ul>
             </nav>
@@ -533,7 +586,7 @@ try {
         <!-- ═══════════════════════════════════════════════════════════════
              MAIN CONTENT
              ═══════════════════════════════════════════════════════════════ -->
-        <div class="flex-1 ml-64 main-content">
+        <div class="flex-1 ml-64 main-content min-w-0 overflow-x-hidden">
             <!-- News Ticker -->
             <?php if (!empty($tickerItems)): ?>
                 <div class="ticker-container py-2">
@@ -662,7 +715,7 @@ try {
             <?php endif; ?>
 
             <!-- Page Content -->
-            <main class="p-8">
+            <main class="p-4 md:p-6 lg:p-8 min-w-0 max-w-full">
                 <?= $content ?? '' ?>
             </main>
 

@@ -42,14 +42,6 @@ $items = $db->fetchAll(
     $params
 );
 
-// If new table is empty, try legacy table
-if (empty($items)) {
-    $legacyItems = $db->fetchAll("SELECT * FROM pir_details ORDER BY Item_ID DESC LIMIT 100");
-    if (!empty($legacyItems)) {
-        $items = $legacyItems;
-    }
-}
-
 // Get stats
 $totalValue = $db->fetchValue("SELECT SUM(unit_price) FROM inventory_items i WHERE inventory_type = 'pir' AND is_active = 1" . (!Auth::isSupervisor() ? " AND current_holder_id = {$user['id']}" : "")) ?? 0;
 $totalCount = count($items);
